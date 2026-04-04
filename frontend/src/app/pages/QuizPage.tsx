@@ -1,89 +1,131 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { ClipboardList, Check, X, Trophy, RotateCw } from "lucide-react";
 import { toast } from "sonner";
+import axios, { AxiosError } from "axios";
+import {
+  API_BASE_URL,
+  getAuthToken,
+  loadQuizFromSession,
+  saveAttemptIdToSession,
+  saveReportToSession,
+  saveQuizToSession,
+  type ReportPayload,
+  type QuizPayload,
+  type QuizQuestion,
+} from "../lib/session";
 
-const mockQuiz = [
-  {
-    question: "What is the primary goal of Machine Learning?",
-    options: [
-      "To replace human intelligence",
-      "To enable systems to learn from experience",
-      "To create robots",
-      "To store data efficiently",
-    ],
-    correctAnswer: 1,
-  },
-  {
-    question: "Which type of learning uses labeled data?",
-    options: ["Unsupervised Learning", "Reinforcement Learning", "Supervised Learning", "Deep Learning"],
-    correctAnswer: 2,
-  },
-  {
-    question: "What is overfitting in machine learning?",
-    options: [
-      "When a model performs too well on training data but poorly on new data",
-      "When a model doesn't learn anything",
-      "When a model is too simple",
-      "When training takes too long",
-    ],
-    correctAnswer: 0,
-  },
-  {
-    question: "What is the purpose of cross-validation?",
-    options: [
-      "To increase training speed",
-      "To assess model performance and prevent overfitting",
-      "To visualize data",
-      "To clean data",
-    ],
-    correctAnswer: 1,
-  },
-  {
-    question: "Which of these is NOT a type of machine learning?",
-    options: ["Supervised Learning", "Unsupervised Learning", "Quantum Learning", "Reinforcement Learning"],
-    correctAnswer: 2,
-  },
-];
+type RouteState = {
+  quiz?: QuizPayload;
+} | null;
+
+const normalizeText = (value: string) =>
+  value
+    .trim()
+    .replace(/^[A-D][\.\):\-]\s*/i, "")
+    .toLowerCase();
+
+const resolveCorrectAnswer = (question: QuizQuestion): string => {
+  const options = question.options.map((option) => String(option));
+  const raw = String(question.correctAnswer || "").trim();
+
+  if (options.includes(raw)) {
+    return raw;
+  }
+
+  const letterMatch = raw.match(/^[A-D]/i);
+  if (letterMatch) {
+    const index = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
+    if (options[index]) {
+      return options[index];
+    }
+  }
+
+  const normalizedRaw = normalizeText(raw);
+  const matchingOption = options.find((option) => normalizeText(option) === normalizedRaw);
+  return matchingOption || raw;
+};
+
+const sanitizeQuiz = (quiz: QuizPayload): QuizPayload => ({
+  ...quiz,
+  questions: quiz.questions
+    .filter((item) => item?.question && Array.isArray(item?.options))
+    .map((item) => {
+      const options = item.options.map((option) => String(option)).slice(0, 4);
+      return {
+        ...item,
+        question: String(item.question),
+        topic: String(item.topic || "General"),
+        options,
+        correctAnswer: resolveCorrectAnswer({ ...item, options }),
+      };
+    })
+    .filter((item) => item.options.length === 4),
+});
 
 export function QuizPage() {
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<(number | null)[]>(Array(mockQuiz.length).fill(null));
-  const [showResults, setShowResults] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const startTimeRef = useRef<number>(Date.now());
 
-  const handleSelectAnswer = (index: number) => {
-    if (!submitted) {
-      setSelectedAnswer(index);
+  const [quizData, setQuizData] = useState<QuizPayload | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<(string | null)[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverScore, setServerScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    const routeState = location.state as RouteState;
+    const sourceQuiz = routeState?.quiz || loadQuizFromSession();
+
+    if (!sourceQuiz) {
+      setQuizData(null);
+      return;
     }
+
+    const sanitized = sanitizeQuiz(sourceQuiz);
+    if (!sanitized.questions.length) {
+      toast.error("No valid quiz questions found. Please upload another PDF.");
+      setQuizData(null);
+      return;
+    }
+
+    setQuizData(sanitized);
+    saveQuizToSession(sanitized);
+    setCurrentQuestion(0);
+    setSelectedAnswer(null);
+    setAnswers(Array(sanitized.questions.length).fill(null));
+    setShowResults(false);
+    setServerScore(null);
+    startTimeRef.current = Date.now();
+  }, [location.state]);
+
+  const totalQuestions = quizData?.questions.length ?? 0;
+  const progress = totalQuestions ? ((currentQuestion + 1) / totalQuestions) * 100 : 0;
+
+  const score = useMemo(() => {
+    if (!quizData) return 0;
+    return answers.reduce((count, answer, index) => {
+      return answer === quizData.questions[index]?.correctAnswer ? count + 1 : count;
+    }, 0);
+  }, [answers, quizData]);
+
+  const percentage = useMemo(() => {
+    if (!quizData) return 0;
+    if (typeof serverScore === "number") return serverScore;
+    return Math.round((score / quizData.questions.length) * 100);
+  }, [quizData, score, serverScore]);
+
+  const handleSelectAnswer = (option: string) => {
+    setSelectedAnswer(option);
   };
 
   const handleNext = () => {
-    if (selectedAnswer !== null) {
-      const newAnswers = [...answers];
-      newAnswers[currentQuestion] = selectedAnswer;
-      setAnswers(newAnswers);
+    if (!quizData) return;
 
-      if (currentQuestion < mockQuiz.length - 1) {
-        setCurrentQuestion(currentQuestion + 1);
-        setSelectedAnswer(answers[currentQuestion + 1]);
-        setSubmitted(false);
-      }
-    } else {
-      toast.error("Please select an answer");
-    }
-  };
-
-  const handlePrevious = () => {
-    if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(answers[currentQuestion - 1]);
-      setSubmitted(false);
-    }
-  };
-
-  const handleSubmit = () => {
     if (selectedAnswer === null) {
       toast.error("Please select an answer");
       return;
@@ -93,32 +135,135 @@ export function QuizPage() {
     newAnswers[currentQuestion] = selectedAnswer;
     setAnswers(newAnswers);
 
-    const allAnswered = newAnswers.every((ans) => ans !== null);
-    if (allAnswered) {
+    if (currentQuestion < quizData.questions.length - 1) {
+      const nextIndex = currentQuestion + 1;
+      setCurrentQuestion(nextIndex);
+      setSelectedAnswer(newAnswers[nextIndex]);
+    }
+  };
+
+  const handlePrevious = () => {
+    if (currentQuestion > 0) {
+      const prevIndex = currentQuestion - 1;
+      setCurrentQuestion(prevIndex);
+      setSelectedAnswer(answers[prevIndex]);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!quizData) return;
+
+    if (selectedAnswer === null) {
+      toast.error("Please select an answer");
+      return;
+    }
+
+    const newAnswers = [...answers];
+    newAnswers[currentQuestion] = selectedAnswer;
+    setAnswers(newAnswers);
+
+    const allAnswered = newAnswers.every((answer) => answer !== null);
+    if (!allAnswered) {
+      toast.error("Please answer all questions");
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Please sign in again");
+      navigate("/auth");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const userAnswers = quizData.questions.map((question, index) => ({
+        question: question.question,
+        topic: question.topic,
+        userAnswer: newAnswers[index] || "",
+        correctAnswer: question.correctAnswer,
+      }));
+
+      const timeTaken = Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000));
+      const { data } = await axios.post<{ score?: number; attemptId?: string }>(
+        `${API_BASE_URL}/api/quiz/submit`,
+        {
+          quizId: quizData.quizId,
+          userAnswers,
+          timeTaken,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (typeof data.score === "number") {
+        setServerScore(data.score);
+      }
+
+      if (data.attemptId) {
+        saveAttemptIdToSession(data.attemptId);
+        try {
+          const reportResponse = await axios.post<ReportPayload>(
+            `${API_BASE_URL}/api/report/generate/${data.attemptId}`,
+            {},
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+          saveReportToSession(reportResponse.data);
+        } catch (_reportError) {
+          toast.info("Quiz submitted, but report generation will be retried in Weak Analysis.");
+        }
+      }
+
       setShowResults(true);
       toast.success("Quiz completed!");
-    } else {
-      toast.error("Please answer all questions");
+    } catch (error) {
+      const message =
+        error instanceof AxiosError
+          ? ((error.response?.data as { message?: string } | undefined)?.message ?? "Failed to submit quiz")
+          : "Failed to submit quiz";
+      toast.error(message);
+      setShowResults(true);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleRetake = () => {
+    if (!quizData) return;
     setCurrentQuestion(0);
     setSelectedAnswer(null);
-    setAnswers(Array(mockQuiz.length).fill(null));
+    setAnswers(Array(quizData.questions.length).fill(null));
     setShowResults(false);
-    setSubmitted(false);
+    setServerScore(null);
+    startTimeRef.current = Date.now();
   };
 
-  const calculateScore = () => {
-    return answers.reduce((score, answer, index) => {
-      return answer === mockQuiz[index].correctAnswer ? score + 1 : score;
-    }, 0);
-  };
-
-  const score = calculateScore();
-  const percentage = Math.round((score / mockQuiz.length) * 100);
-  const progress = ((currentQuestion + 1) / mockQuiz.length) * 100;
+  if (!quizData) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="p-8 rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm text-center">
+          <h1 className="text-2xl font-semibold mb-3">No Quiz Found</h1>
+          <p className="text-muted-foreground mb-6">
+            Upload a PDF first so we can generate a Gemini-based quiz.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white font-semibold"
+          >
+            Go to Upload
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (showResults) {
     return (
@@ -140,7 +285,7 @@ export function QuizPage() {
             <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-[#6366f1] to-[#3b82f6] bg-clip-text text-transparent">
               Quiz Complete!
             </h1>
-            <p className="text-muted-foreground text-lg">Here's how you performed</p>
+            <p className="text-muted-foreground text-lg">Here&apos;s how you performed</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -163,7 +308,7 @@ export function QuizPage() {
               className="p-8 rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm text-center"
             >
               <div className="text-5xl font-bold bg-gradient-to-r from-[#6366f1] to-[#3b82f6] bg-clip-text text-transparent mb-2">
-                {score}/{mockQuiz.length}
+                {score}/{quizData.questions.length}
               </div>
               <p className="text-muted-foreground">Correct Answers</p>
             </motion.div>
@@ -187,11 +332,11 @@ export function QuizPage() {
             transition={{ delay: 0.6 }}
             className="space-y-4 mb-8"
           >
-            {mockQuiz.map((q, index) => (
+            {quizData.questions.map((question, index) => (
               <div
-                key={index}
+                key={`${question._id || question.question}-${index}`}
                 className={`p-6 rounded-2xl border backdrop-blur-sm ${
-                  answers[index] === q.correctAnswer
+                  answers[index] === question.correctAnswer
                     ? "bg-green-500/10 border-green-500/30"
                     : "bg-red-500/10 border-red-500/30"
                 }`}
@@ -199,10 +344,10 @@ export function QuizPage() {
                 <div className="flex items-start gap-4">
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      answers[index] === q.correctAnswer ? "bg-green-500/20" : "bg-red-500/20"
+                      answers[index] === question.correctAnswer ? "bg-green-500/20" : "bg-red-500/20"
                     }`}
                   >
-                    {answers[index] === q.correctAnswer ? (
+                    {answers[index] === question.correctAnswer ? (
                       <Check className="w-5 h-5 text-green-500" />
                     ) : (
                       <X className="w-5 h-5 text-red-500" />
@@ -210,25 +355,25 @@ export function QuizPage() {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-semibold mb-3">
-                      {index + 1}. {q.question}
+                      {index + 1}. {question.question}
                     </h4>
                     <div className="space-y-2">
-                      {q.options.map((option, optIndex) => (
+                      {question.options.map((option, optionIndex) => (
                         <div
-                          key={optIndex}
+                          key={`${option}-${optionIndex}`}
                           className={`p-3 rounded-xl border ${
-                            optIndex === q.correctAnswer
+                            option === question.correctAnswer
                               ? "bg-green-500/10 border-green-500/30 text-green-500"
-                              : optIndex === answers[index]
-                              ? "bg-red-500/10 border-red-500/30 text-red-500"
-                              : "bg-background/50 border-border/30"
+                              : option === answers[index]
+                                ? "bg-red-500/10 border-red-500/30 text-red-500"
+                                : "bg-background/50 border-border/30"
                           }`}
                         >
                           <span className="text-sm">{option}</span>
-                          {optIndex === q.correctAnswer && (
+                          {option === question.correctAnswer && (
                             <span className="ml-2 text-xs">(Correct)</span>
                           )}
-                          {optIndex === answers[index] && optIndex !== q.correctAnswer && (
+                          {option === answers[index] && option !== question.correctAnswer && (
                             <span className="ml-2 text-xs">(Your answer)</span>
                           )}
                         </div>
@@ -252,7 +397,7 @@ export function QuizPage() {
     );
   }
 
-  const currentQ = mockQuiz[currentQuestion];
+  const currentQ = quizData.questions[currentQuestion];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -261,7 +406,6 @@ export function QuizPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6366f1]/20 to-[#3b82f6]/20 flex items-center justify-center">
@@ -271,14 +415,13 @@ export function QuizPage() {
               Practice Quiz
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg ml-[52px]">Test your understanding of the material</p>
+          <p className="text-muted-foreground text-lg ml-[52px]">Generated from your uploaded PDF using Gemini</p>
         </div>
 
-        {/* Progress */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">
-              Question {currentQuestion + 1} of {mockQuiz.length}
+              Question {currentQuestion + 1} of {totalQuestions}
             </span>
             <span className="text-sm text-muted-foreground">{Math.round(progress)}% Complete</span>
           </div>
@@ -292,7 +435,6 @@ export function QuizPage() {
           </div>
         </div>
 
-        {/* Question */}
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion}
@@ -303,17 +445,18 @@ export function QuizPage() {
             className="mb-8"
           >
             <div className="p-8 rounded-2xl bg-card/80 border border-border/50 backdrop-blur-sm mb-6">
-              <h2 className="text-2xl font-semibold mb-6">{currentQ.question}</h2>
+              <h2 className="text-2xl font-semibold mb-2">{currentQ.question}</h2>
+              <p className="text-sm text-muted-foreground mb-6">Topic: {currentQ.topic}</p>
 
               <div className="space-y-3">
                 {currentQ.options.map((option, index) => (
                   <motion.button
-                    key={index}
-                    onClick={() => handleSelectAnswer(index)}
+                    key={`${option}-${index}`}
+                    onClick={() => handleSelectAnswer(option)}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className={`w-full p-4 rounded-xl text-left transition-all duration-200 border-2 ${
-                      selectedAnswer === index
+                      selectedAnswer === option
                         ? "bg-gradient-to-r from-[#6366f1]/20 to-[#3b82f6]/20 border-[#6366f1] shadow-lg shadow-[#6366f1]/10"
                         : "bg-background/50 border-border/50 hover:border-[#6366f1]/50 hover:bg-accent"
                     }`}
@@ -321,12 +464,12 @@ export function QuizPage() {
                     <div className="flex items-center gap-4">
                       <div
                         className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 ${
-                          selectedAnswer === index
+                          selectedAnswer === option
                             ? "border-[#6366f1] bg-[#6366f1]"
                             : "border-muted-foreground/30"
                         }`}
                       >
-                        {selectedAnswer === index && <Check className="w-4 h-4 text-white" />}
+                        {selectedAnswer === option && <Check className="w-4 h-4 text-white" />}
                       </div>
                       <span>{option}</span>
                     </div>
@@ -337,7 +480,6 @@ export function QuizPage() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Navigation */}
         <div className="flex items-center justify-between gap-4">
           <button
             onClick={handlePrevious}
@@ -347,12 +489,13 @@ export function QuizPage() {
             Previous
           </button>
 
-          {currentQuestion === mockQuiz.length - 1 ? (
+          {currentQuestion === totalQuestions - 1 ? (
             <button
               onClick={handleSubmit}
-              className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white font-semibold hover:shadow-lg hover:shadow-[#6366f1]/20 transition-all duration-200"
+              disabled={isSubmitting}
+              className="px-8 py-3 rounded-xl bg-gradient-to-r from-[#6366f1] to-[#3b82f6] text-white font-semibold hover:shadow-lg hover:shadow-[#6366f1]/20 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Submit Quiz
+              {isSubmitting ? "Submitting..." : "Submit Quiz"}
             </button>
           ) : (
             <button

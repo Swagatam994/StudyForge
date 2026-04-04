@@ -1,9 +1,9 @@
-
-import QuizAttempt from "../models/QuizAttempt";
-import Report from '../models/Report'
-import { analyzeAttempt } from "../services/reportServices";
-import {generateSummary} from '../services/aiServices'
-import { getVideosForTopics } from "../services/youtubeServices";
+import QuizAttempt from "../models/quizAttempt.js";
+import Report from "../models/report.js";
+import { analyzeAttempt } from "../services/reportServices.js";
+import { generateSummary } from "../services/aiServices.js";
+import { getVideosForTopics } from "../services/youtubeServices.js";
+import { scheduleTopicsAfterReport } from "../services/spacedRepetitionService.js";
 
 
 // POST /api/report/generate/:attemptId
@@ -34,8 +34,11 @@ export const generateReport = async (req, res) => {
       summary,
     });
 
+    await scheduleTopicsAfterReport(req.user.id, weakTopics, attempt.quiz);
+
     res.status(201).json(report);
   } catch (err) {
+    console.error("generateReport failed:", err);
     res.status(500).json({ message: err.message });
   }
 };
@@ -46,6 +49,7 @@ export const getMyReports = async (req, res) => {
     const reports = await Report.find({ user: req.user.id }).sort({ createdAt: -1 });
     res.json(reports);
   } catch (err) {
+    console.error("getMyReports failed:", err);
     res.status(500).json({ message: err.message });
   }
 };

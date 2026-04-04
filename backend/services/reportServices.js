@@ -18,7 +18,7 @@ export const analyzeAttempt = (answers, score, timeTaken) => {
   // Classify learner
   let learnerType;
   if (score >= 80) learnerType = "Fast Learner";
-  else if (score >= 50) learnerType = "Average Learner";
+  else if (score >= 50) learnerType = "Medium Learner";
   else learnerType = "Slow Learner";
 
   return { learnerType, strongTopics, weakTopics, topicScores };

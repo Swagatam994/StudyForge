@@ -1,14 +1,23 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { Upload, FileText, FileVideo, FileAudio, File, X, Sparkles, Brain, ClipboardList } from "lucide-react";
+import { Upload, FileText, X, Sparkles, Brain, ClipboardList } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
+import axios, { AxiosError } from "axios";
+import { API_BASE_URL, getAuthToken, saveQuizToSession, type QuizPayload } from "../lib/session";
 
 export function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
+
+  const supportedExtensions = [".pdf", ".txt", ".doc", ".docx", ".ppt", ".pptx"];
+
+  const isSupportedFile = (file: File) => {
+    const filename = file.name.toLowerCase();
+    return supportedExtensions.some((ext) => filename.endsWith(ext));
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -24,6 +33,10 @@ export function UploadPage() {
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) {
+      if (!isSupportedFile(file)) {
+        toast.error("Supported types: PDF, TXT, DOC, DOCX, PPT, PPTX");
+        return;
+      }
       setUploadedFile(file);
       toast.success("File uploaded successfully!");
     }
@@ -32,33 +45,60 @@ export function UploadPage() {
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!isSupportedFile(file)) {
+        toast.error("Supported types: PDF, TXT, DOC, DOCX, PPT, PPTX");
+        return;
+      }
       setUploadedFile(file);
       toast.success("File uploaded successfully!");
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!uploadedFile) {
       toast.error("Please upload a file first");
       return;
     }
+
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Please sign in to generate a quiz");
+      navigate("/auth");
+      return;
+    }
+
     setIsProcessing(true);
-    setTimeout(() => {
+
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+
+      const { data } = await axios.post<QuizPayload>(`${API_BASE_URL}/api/quiz/generate`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (!data?.quizId || !Array.isArray(data.questions) || data.questions.length === 0) {
+        throw new Error("Quiz generation failed: no questions returned");
+      }
+
+      saveQuizToSession(data);
+      toast.success("Quiz generated successfully!");
+      navigate("/quiz", { state: { quiz: data } });
+    } catch (error) {
+      const message =
+        error instanceof AxiosError
+          ? ((error.response?.data as { message?: string } | undefined)?.message ?? "Failed to generate quiz")
+          : "Failed to generate quiz";
+      toast.error(message);
+    } finally {
       setIsProcessing(false);
-      toast.success("Content generated successfully!");
-      navigate("/summary");
-    }, 2000);
+    }
   };
 
-  const getFileIcon = (fileName: string) => {
-    const ext = fileName.split(".").pop()?.toLowerCase();
-    if (["mp4", "avi", "mov", "mkv"].includes(ext || "")) return FileVideo;
-    if (["mp3", "wav", "m4a"].includes(ext || "")) return FileAudio;
-    if (["pdf", "docx", "pptx", "txt"].includes(ext || "")) return FileText;
-    return File;
-  };
-
-  const FileIcon = uploadedFile ? getFileIcon(uploadedFile.name) : FileText;
+  const FileIcon = FileText;
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -69,10 +109,10 @@ export function UploadPage() {
       >
         <div className="mb-8">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-[#6366f1] to-[#3b82f6] bg-clip-text text-transparent">
-            Upload Your Study Materials
+            Upload Your Document
           </h1>
           <p className="text-muted-foreground text-lg">
-            Transform your documents into summaries, flashcards, and quizzes with AI
+            Upload PDF, TXT, Word, or PowerPoint to generate a Gemini-powered quiz
           </p>
         </div>
 
@@ -94,7 +134,7 @@ export function UploadPage() {
             id="file-upload"
             className="hidden"
             onChange={handleFileInput}
-            accept=".pdf,.docx,.pptx,.txt,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv"
+            accept=".pdf,.txt,.doc,.docx,.ppt,.pptx"
           />
 
           <div className="flex flex-col items-center justify-center text-center">
@@ -122,10 +162,11 @@ export function UploadPage() {
             <div className="flex flex-wrap gap-3 justify-center">
               {[
                 { icon: FileText, label: "PDF" },
-                { icon: FileText, label: "DOCX" },
-                { icon: FileText, label: "PPTX" },
-                { icon: FileAudio, label: "Audio" },
-                { icon: FileVideo, label: "Video" },
+                { icon: FileText, label: "TXT" },
+                { icon: FileText, label: "DOC/DOCX" },
+                { icon: FileText, label: "PPT/PPTX" },
+                { icon: Sparkles, label: "Gemini Quiz" },
+                { icon: ClipboardList, label: "10 Questions" },
               ].map((format, index) => (
                 <motion.div
                   key={format.label}
@@ -204,7 +245,7 @@ export function UploadPage() {
                 ) : (
                   <>
                     <Sparkles className="w-6 h-6" />
-                    Generate Study Materials
+                    Generate Quiz
                   </>
                 )}
               </button>

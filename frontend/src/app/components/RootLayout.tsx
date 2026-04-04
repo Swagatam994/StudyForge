@@ -4,6 +4,7 @@ import {
   FileText, 
   Brain, 
   ClipboardList, 
+  BarChart3,
   GraduationCap, 
   TrendingDown,
   User,
@@ -16,6 +17,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useState } from "react";
 
 const navItems = [
+  { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { path: "/", label: "Upload", icon: Upload, exact: true },
   { path: "/summary", label: "Summary", icon: FileText },
   { path: "/flashcards", label: "Flashcards", icon: Brain },
