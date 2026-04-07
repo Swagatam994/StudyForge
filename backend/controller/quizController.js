@@ -1,7 +1,8 @@
 import Quiz from "../models/Quiz.js";
 import QuizAttempt from "../models/quizAttempt.js";
 import { extractTextFromUrl } from "../services/documentService.js";
-import { generateQuiz } from "../services/aiServices.js";
+import { processExtractedText } from "../services/textCleaningService.js";
+import { generateQuiz, generateDocumentSummary, generateFlashcards } from "../services/aiServices.js";
 
 // POST /api/quiz/generate  (multipart: PDF file)
 export const generateQuizFromDocument = async (req, res) => {
@@ -15,38 +16,64 @@ export const generateQuizFromDocument = async (req, res) => {
       return res.status(400).json({ message: "Uploaded file URL is missing" });
     }
 
-    const baseFileId = req.file.filename || req.file.public_id || req.file.asset_id || "upload";
-    const fileId = `${baseFileId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const fileType = String(req.file.originalname || "").split(".").pop()?.toLowerCase() || "pdf";
+    const filename = req.file.originalname;
 
-    let text;
+    let rawText;
     try {
-      text = await extractTextFromUrl(fileUrl, req.file.originalname);
+      rawText = await extractTextFromUrl(fileUrl, filename);
     } catch (err) {
       return res.status(422).json({
-        message: "Could not extract text from your file. If it's a scanned image, try a clearer scan. If it's an old .doc or .ppt format, try saving as .docx or .pptx first.",
-        detail: err.message,
+        message: err.message,
+        stage: "extraction",
       });
     }
 
-    const questions = await generateQuiz(text);
+    let cleanedText;
+    try {
+      cleanedText = await processExtractedText(rawText, filename);
+    } catch (err) {
+      return res.status(422).json({
+        message: err.message,
+        stage: "validation",
+      });
+    }
+
+    let questions;
+    try {
+      questions = await generateQuiz(cleanedText);
+    } catch (err) {
+      return res.status(422).json({
+        message: err.message,
+        stage: "generation",
+      });
+    }
+
+    const baseFileId = req.file.filename || req.file.public_id || req.file.asset_id || "upload";
+    const fileId = `${baseFileId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const fileType = String(filename || "").split(".").pop()?.toLowerCase() || "pdf";
+
+    let aiSummary = "";
+    let aiFlashcards = [];
+    try {
+      [aiSummary, aiFlashcards] = await Promise.all([
+        generateDocumentSummary(cleanedText, filename),
+        generateFlashcards(cleanedText),
+      ]);
+    } catch (err) {
+      console.warn("AI summary/flashcards generation skipped:", err.message);
+    }
 
     const quiz = await Quiz.create({
       user: req.user.id,
       fileId,
-      pdfName: req.file.originalname,
+      pdfName: filename,
       fileType,
+      aiSummary,
+      aiFlashcards,
       questions,
     });
 
-    res.status(201).json({
-      quizId: quiz._id,
-      fileId: quiz.fileId,
-      pdfName: quiz.pdfName,
-      fileType: quiz.fileType,
-      questions: quiz.questions,
-      sourceUrl: fileUrl,
-    });
+    res.status(201).json({ quizId: quiz._id, questions: quiz.questions });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -7,6 +7,12 @@ const questionSchema = new mongoose.Schema({
   topic: String,              // e.g. "Sorting Algorithms"
 });
 
+const flashcardSchema = new mongoose.Schema({
+  front: String,
+  back: String,
+  topic: String,
+});
+
 const quizSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   fileId: { type: String, required: true, index: true },
@@ -16,6 +22,8 @@ const quizSchema = new mongoose.Schema({
     enum: ["pdf", "txt", "doc", "docx", "ppt", "pptx"],
     default: "pdf",
   },
+  aiSummary: String,
+  aiFlashcards: [flashcardSchema],
   questions: [questionSchema],
   createdAt: { type: Date, default: Date.now },
 });

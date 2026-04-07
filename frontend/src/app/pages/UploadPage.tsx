@@ -88,11 +88,27 @@ export function UploadPage() {
       toast.success("Quiz generated successfully!");
       navigate("/quiz", { state: { quiz: data } });
     } catch (error) {
-      const message =
-        error instanceof AxiosError
-          ? ((error.response?.data as { message?: string } | undefined)?.message ?? "Failed to generate quiz")
-          : "Failed to generate quiz";
-      toast.error(message);
+      if (error instanceof AxiosError && error.response?.status === 422) {
+        const payload = (error.response.data as { message?: string; stage?: string } | undefined) || {};
+        const message = payload.message || "Failed to generate quiz";
+        const stage = payload.stage;
+
+        if (stage === "extraction") {
+          toast.error(`Could not read your file. ${message}`);
+        } else if (stage === "validation") {
+          toast.error(`Document issue: ${message}`);
+        } else if (stage === "generation") {
+          toast.error(`Quiz generation failed. ${message}`);
+        } else {
+          toast.error(message);
+        }
+      } else {
+        const message =
+          error instanceof AxiosError
+            ? ((error.response?.data as { message?: string } | undefined)?.message ?? "Failed to generate quiz")
+            : "Failed to generate quiz";
+        toast.error(message);
+      }
     } finally {
       setIsProcessing(false);
     }

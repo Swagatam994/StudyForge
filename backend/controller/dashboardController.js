@@ -79,6 +79,8 @@ export const getDocumentDetail = async (req, res) => {
         quizId: String(quiz._id),
         pdfName: quiz.pdfName,
         createdAt: quiz.createdAt,
+        aiSummary: quiz.aiSummary || "",
+        aiFlashcards: quiz.aiFlashcards || [],
         questions: quiz.questions || [],
       },
       attempts: attempts.map((attempt) => ({
@@ -97,11 +99,18 @@ export const getDocumentDetail = async (req, res) => {
             summary: latestReport.summary || "",
           }
         : null,
-      flashcards: (quiz.questions || []).map((question) => ({
-        front: question.question,
-        back: question.correctAnswer,
-        topic: question.topic,
-      })),
+      flashcards:
+        Array.isArray(quiz.aiFlashcards) && quiz.aiFlashcards.length
+          ? quiz.aiFlashcards.map((card) => ({
+              front: card.front,
+              back: card.back,
+              topic: card.topic,
+            }))
+          : (quiz.questions || []).map((question) => ({
+              front: question.question,
+              back: question.correctAnswer,
+              topic: question.topic,
+            })),
       reviews: reviews.map((review) => ({
         topic: review.topic,
         status: review.status,

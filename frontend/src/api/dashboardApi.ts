@@ -40,7 +40,14 @@ export interface DocumentSummary {
 }
 
 export interface DocumentDetail {
-  quiz: { quizId: string; pdfName: string; createdAt: string; questions: any[] };
+  quiz: {
+    quizId: string;
+    pdfName: string;
+    createdAt: string;
+    aiSummary?: string;
+    aiFlashcards?: { front: string; back: string; topic: string }[];
+    questions: any[];
+  };
   attempts: { attemptId: string; score: number; timeTaken: number; submittedAt: string }[];
   latestReport: {
     learnerType: string;
