@@ -8,6 +8,8 @@ import { ResearchPaperPage } from "./pages/ResearchPaperPage";
 import { WeakAnalysisPage } from "./pages/WeakAnalysisPage";
 import { AuthPage } from "./pages/AuthPage";
 import Dashboard from "../pages/Dashboard";
+import CognitivePage from "../pages/CognitivePage";
+import StudyPlanPage from "../pages/StudyPlanPage";
 import { Navigate, Outlet } from "react-router";
 export const router = createBrowserRouter([
   {
@@ -23,10 +25,11 @@ export const router = createBrowserRouter([
       { path: "flashcards", Component: FlashcardsPage },
       { path: "quiz", Component: QuizPage },
       { path: "dashboard", Component: Dashboard },
+      { path: "cognitive", Component: CognitivePage },
+      { path: "study-plan", Component: StudyPlanPage },
       { path: "research-paper", Component: ResearchPaperPage },
       { path: "weak-analysis", Component: WeakAnalysisPage },
     ],
   },
 ]);
-
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router";
 import {
   getDocumentDetail,
   getDocuments,
@@ -144,9 +145,25 @@ export default function Dashboard() {
   if (!selectedQuizId) {
     return (
       <div className="min-h-full rounded-xl bg-[#0f172a] p-6 text-white shadow-lg">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-slate-300">Track your generated quizzes, scores, and learning progress.</p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Dashboard</h1>
+            <p className="text-slate-300">Track your generated quizzes, scores, and learning progress.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/cognitive"
+              className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-300 transition-all duration-200 hover:bg-slate-700 hover:text-white"
+            >
+              🧠 Cognitive Profile
+            </Link>
+            <Link
+              to="/study-plan"
+              className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-300 transition-all duration-200 hover:bg-slate-700 hover:text-white"
+            >
+              📅 Study Plan
+            </Link>
+          </div>
         </div>
 
         {loadingOverview && (

@@ -52,28 +52,35 @@ export const generateQuizFromDocument = async (req, res) => {
     const fileId = `${baseFileId}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     const fileType = String(filename || "").split(".").pop()?.toLowerCase() || "pdf";
 
-    let aiSummary = "";
-    let aiFlashcards = [];
-    try {
-      [aiSummary, aiFlashcards] = await Promise.all([
-        generateDocumentSummary(cleanedText, filename),
-        generateFlashcards(cleanedText),
-      ]);
-    } catch (err) {
-      console.warn("AI summary/flashcards generation skipped:", err.message);
-    }
-
     const quiz = await Quiz.create({
       user: req.user.id,
       fileId,
       pdfName: filename,
       fileType,
-      aiSummary,
-      aiFlashcards,
+      aiSummary: "",
+      aiFlashcards: [],
       questions,
     });
 
     res.status(201).json({ quizId: quiz._id, questions: quiz.questions });
+
+    Promise.all([
+      generateDocumentSummary(cleanedText, filename),
+      generateFlashcards(cleanedText),
+    ])
+      .then(async ([aiSummary, aiFlashcards]) => {
+        await Quiz.findByIdAndUpdate(
+          quiz._id,
+          {
+            aiSummary: aiSummary || "",
+            aiFlashcards: Array.isArray(aiFlashcards) ? aiFlashcards : [],
+          },
+          { returnDocument: "after" },
+        );
+      })
+      .catch((err) => {
+        console.warn("AI summary/flashcards generation skipped:", err.message);
+      });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
