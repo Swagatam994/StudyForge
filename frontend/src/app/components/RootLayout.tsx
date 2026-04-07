@@ -4,6 +4,7 @@ import {
   FileText, 
   Brain, 
   ClipboardList, 
+  BarChart3,
   GraduationCap, 
   TrendingDown,
   User,
@@ -13,9 +14,10 @@ import {
   X
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navItems = [
+  { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { path: "/", label: "Upload", icon: Upload, exact: true },
   { path: "/summary", label: "Summary", icon: FileText },
   { path: "/flashcards", label: "Flashcards", icon: Brain },
@@ -26,9 +28,25 @@ const navItems = [
 
 export function RootLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userName, setUserName] = useState("User");
+  const [userEmail, setUserEmail] = useState("No email");
+
+  useEffect(() => {
+    const raw = localStorage.getItem("studyforge_auth");
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as { user?: { name?: string; email?: string } };
+      setUserName(parsed.user?.name || "User");
+      setUserEmail(parsed.user?.email || "No email");
+    } catch {
+      setUserName("User");
+      setUserEmail("No email");
+    }
+  }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-background text-white">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex flex-col w-64 border-r border-border/50 bg-sidebar backdrop-blur-xl">
         <div className="p-6 border-b border-border/50">
@@ -55,7 +73,7 @@ export function RootLayout() {
                 `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative ${
                   isActive
                     ? "bg-gradient-to-r from-[#6366f1]/20 to-[#3b82f6]/20 text-white shadow-lg shadow-[#6366f1]/10"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    : "text-slate-300 hover:text-white hover:bg-accent"
                 }`
               }
             >
@@ -152,7 +170,7 @@ export function RootLayout() {
                       `flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                         isActive
                           ? "bg-gradient-to-r from-[#6366f1]/20 to-[#3b82f6]/20 text-white"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                          : "text-slate-300 hover:text-white hover:bg-accent"
                       }`
                     }
                   >
@@ -176,7 +194,7 @@ export function RootLayout() {
               <input
                 type="text"
                 placeholder="Search anything..."
-                className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50 transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-background/50 border border-border/50 rounded-xl text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50 transition-all"
               />
             </div>
           </div>
@@ -192,8 +210,8 @@ export function RootLayout() {
                 <User className="w-4 h-4 text-white" />
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium">Alex Johnson</p>
-                <p className="text-xs text-muted-foreground">alex@studyforge.ai</p>
+                <p className="text-sm font-medium text-white">{userName}</p>
+                <p className="text-xs text-slate-300">{userEmail}</p>
               </div>
             </button>
           </div>

@@ -1,4 +1,4 @@
-import  mongoose from ("mongoose");
+import mongoose from "mongoose";
 
 const questionSchema = new mongoose.Schema({
   question: String,
@@ -7,12 +7,26 @@ const questionSchema = new mongoose.Schema({
   topic: String,              // e.g. "Sorting Algorithms"
 });
 
+const flashcardSchema = new mongoose.Schema({
+  front: String,
+  back: String,
+  topic: String,
+});
+
 const quizSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  fileId: { type: String, required: true, index: true },
   pdfName: String,
+  fileType: {
+    type: String,
+    enum: ["pdf", "txt", "doc", "docx", "ppt", "pptx"],
+    default: "pdf",
+  },
+  aiSummary: String,
+  aiFlashcards: [flashcardSchema],
   questions: [questionSchema],
   createdAt: { type: Date, default: Date.now },
 });
 
-const Quiz=module.exports("Quiz", quizSchema);
+const Quiz = mongoose.model("Quiz", quizSchema);
 export default Quiz;
