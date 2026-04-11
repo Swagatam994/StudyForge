@@ -139,8 +139,7 @@ export default function CognitivePage() {
             </Link>
             <h1 className="text-2xl font-bold">🧠 Your Cognitive Learning Profile</h1>
             <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
-              <span>Powered by DeepSeek-R1 via NVIDIA NIM</span>
-              <span className="rounded-full bg-purple-900 px-2 py-0.5 text-xs text-purple-300">AI Reasoning Model</span>
+                <span className="rounded-full bg-purple-900 px-2 py-0.5 text-xs text-purple-300">AI Reasoning Model</span>
             </div>
           </div>
         </div>
