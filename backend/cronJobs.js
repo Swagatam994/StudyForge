@@ -33,7 +33,10 @@ cron.schedule("0 8 * * *", async () => {
 
 cron.schedule("0 9 * * *", async () => {
   try {
-    const dueSchedules = await ReviewSchedule.find({ status: "due" }).sort({ user: 1, topic: 1 });
+    const dueSchedules = await ReviewSchedule.find({ status: "due" }).sort({
+      user: 1,
+      topic: 1,
+    });
 
     const groupedByUser = new Map();
     for (const schedule of dueSchedules) {
@@ -50,7 +53,9 @@ cron.schedule("0 9 * * *", async () => {
       }
 
       const uniqueTopics = [...new Set(topics)];
-      const topicsHtml = uniqueTopics.map((topic) => `<li>${topic}</li>`).join("");
+      const topicsHtml = uniqueTopics
+        .map((topic) => `<li>${topic}</li>`)
+        .join("");
 
       const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
