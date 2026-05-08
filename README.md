@@ -1,3 +1,4 @@
+
 📖 What is StudyForge?
 
 StudyForge is not just a quiz generator. It is a personalized learning intelligence system that:
@@ -14,7 +15,10 @@ Tracks your memory decay in real time with a visual graph
 "Every other quiz app tells you what you got wrong. We tell you WHY your brain fails — and fix it automatically."
 
 ✨ Features
+
 📄 Multi-Format Document Processing
+
+<img width="1920" height="1080" alt="Screenshot (68)" src="https://github.com/user-attachments/assets/6e182e23-adbb-4c65-ba0d-a0af759cd9ac" />
 
 Supports PDF, DOCX, DOC, PPTX, PPT, TXT — any document, not just PDFs
 Smart OCR fallback using Tesseract.js for scanned/image-based PDFs
@@ -23,6 +27,8 @@ Text cleaning and validation pipeline — no nonsense questions from bad text
 
 🎯 AI-Powered Quiz Generation
 
+<img width="1920" height="1080" alt="Screenshot (69)" src="https://github.com/user-attachments/assets/5bbfc05f-a88f-4ad2-b79f-5b4e0f54b45f" />
+
 Questions generated strictly from your document — no hallucinated content
 Three question types: Conceptual, Applied, Factual
 Automatic difficulty tagging per question
@@ -30,6 +36,10 @@ Gemini 2.5 Flash as primary with NVIDIA Llama 3.3 as intelligent fallback
 Minimum 3, maximum 10 questions with strict JSON validation
 
 🧠 Cognitive Failure Fingerprinting (Powered by DeepSeek-R1)
+
+<img width="1920" height="1080" alt="Screenshot (74)" src="https://github.com/user-attachments/assets/c41f015f-cdf8-4505-a53c-ae300704875b" />
+
+
 Detects one of 6 cognitive failure patterns per weak topic
 
  📅AI Study Plan Generator (Powered by NVIDIA Nemotron)
@@ -39,8 +49,14 @@ Weak topics get 70% of study days, strong topics get 30% maintenance
 Study tasks calibrated to each topic's cognitive failure pattern
 
 🔐 Authentication
-
+<img width="1920" height="1080" alt="Screenshot (75)" src="https://github.com/user-attachments/assets/30d308ae-34f9-4609-a4af-9bc825463966" />
 Email/password registration with bcrypt hashing
 Google OAuth via one-click login
 JWT tokens with automatic expiry handling
 Account linking — Google and manual accounts merged if same email
+<img width="1920" height="1080" alt="Screenshot (72)" src="https://github.com/user-attachments/assets/a5a5ec38-8575-40c7-ae5c-76b74a02c40a" />
+<img width="1920" height="1080" alt="Screenshot (74)" src="https://github.com/user-attachments/assets/64cab93a-41cb-410e-b0cd-f4e037285274" />
+<img width="1920" height="1080" alt="Screenshot (73)" src="https://github.com/user-attachments/assets/efdf2c70-8a84-44b1-a882-34401b66cb4b" />
+<img width="1920" height="1080" alt="Screenshot (70)" src="https://github.com/user-attachments/assets/0ccb8662-54dd-4890-837b-cd7fbfb326b7" />
+<img width="1920" height="1080" alt="Screenshot (69)" src="https://github.com/user-attachments/assets/34505006-432f-4717-bc6b-79afffcca573" />
+
