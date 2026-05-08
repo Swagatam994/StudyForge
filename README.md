@@ -56,6 +56,11 @@ JWT tokens with automatic expiry handling
 Account linking — Google and manual accounts merged if same email
 <img width="1920" height="1080" alt="Screenshot (72)" src="https://github.com/user-attachments/assets/a5a5ec38-8575-40c7-ae5c-76b74a02c40a" />
 <img width="1920" height="1080" alt="Screenshot (74)" src="https://github.com/user-attachments/assets/64cab93a-41cb-410e-b0cd-f4e037285274" />
+
+ ⏯️ Youtube Video Recommendation
+ 
+Carefully recommends Videos on the weak topics that the user marked incorrect in the quiz 
+
 <img width="1920" height="1080" alt="Screenshot (73)" src="https://github.com/user-attachments/assets/efdf2c70-8a84-44b1-a882-34401b66cb4b" />
 <img width="1920" height="1080" alt="Screenshot (70)" src="https://github.com/user-attachments/assets/0ccb8662-54dd-4890-837b-cd7fbfb326b7" />
 <img width="1920" height="1080" alt="Screenshot (69)" src="https://github.com/user-attachments/assets/34505006-432f-4717-bc6b-79afffcca573" />
